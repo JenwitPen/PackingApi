@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PackingApi.Authentication;
 using PackingApi.Swagger;
 using Swashbuckle.AspNetCore.Swagger;
 
@@ -58,6 +59,8 @@ namespace PackingApi
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "Packing API V1");
             });
+
+            app.ApplyUserKeyValidation();
             app.UseHttpsRedirection();
             app.UseMvc();
         }
