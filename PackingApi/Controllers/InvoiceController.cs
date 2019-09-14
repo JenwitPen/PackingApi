@@ -13,21 +13,21 @@ namespace PackingApi.Controllers
     [Route("api/[controller]/[action]")]
     [EnableCors("CorsPolicy")]
     [ApiController]
-    public class UserController : ControllerBase
+    public class InvoiceController : ControllerBase
     {
         private PackingDBContext db;
-        public UserController(PackingDBContext packingDBContext)
+        public InvoiceController(PackingDBContext packingDBContext)
         {
             this.db = packingDBContext;
         }
         // GET api/values
         [HttpGet]
-        public async Task<ActionResult> selectUser()
+        public async Task<ActionResult> selectInvoice(int page = 1, int size = 10)
         {
             try
             {
-                var response = await (from user in db.TbmUser
-                                      select user).ToListAsync();
+                var response =await (from user in db.TbtInvoice
+                                select user).Skip((page - 1) * size).Take(size).ToListAsync();
 
                 if (response.Count != 0)
                 {
@@ -44,7 +44,6 @@ namespace PackingApi.Controllers
 
                 return StatusCode(500, ex);
             }
-
         }
     }
 }

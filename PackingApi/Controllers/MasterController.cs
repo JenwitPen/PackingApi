@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PackingApi.Models.DB;
@@ -11,23 +10,25 @@ namespace PackingApi.Controllers
 {
 
     [Route("api/[controller]/[action]")]
-    [EnableCors("CorsPolicy")]
     [ApiController]
-    public class UserController : ControllerBase
+    public class MasterController : ControllerBase
     {
         private PackingDBContext db;
-        public UserController(PackingDBContext packingDBContext)
+        public MasterController(PackingDBContext packingDBContext)
         {
             this.db = packingDBContext;
         }
         // GET api/values
         [HttpGet]
-        public async Task<ActionResult> selectUser()
+        //[ResponseCache(Duration = 3600*4)]
+        public async Task<ActionResult> selectRegion()
         {
             try
             {
-                var response = await (from user in db.TbmUser
-                                      select user).ToListAsync();
+                var data = await (from invoice in db.TbtInvoice
+                                  select new { invoice.Descript }).Distinct().ToListAsync();
+                List<String> response = new List<string>();
+                data.ForEach(i => response.Add(i.Descript));
 
                 if (response.Count != 0)
                 {
@@ -46,5 +47,6 @@ namespace PackingApi.Controllers
             }
 
         }
+       
     }
 }
