@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PackingApi.Models.DB;
+using PackingApi.Models.Requests;
 
 namespace PackingApi.Controllers
 {
@@ -26,10 +27,38 @@ namespace PackingApi.Controllers
         {
             try
             {
-                var response =await (from user in db.TbtInvoice
-                                select user).Skip((page - 1) * size).Take(size).ToListAsync();
+                var response =await (from x in db.TbtInvoice
+                                group x by new
+                                {
+                                    x.DocNum,
+                                    x.DocDate,
+                                    x.DocDueDate,
+                                    x.CardCode,
+                                    x.CardName,
+                                    x.County,
+                                    x.Descript,
+                                    x.ShipToCode,
+                                    x.Transporter,
+                                    x.Address,
+                                    x.Remark
+                                } into g
+                                select new selectInvoiceRequest
+                                {
+                                    DocNum = g.Key.DocNum,
+                                    DocDate = g.Key.DocDate,
+                                    DocDueDate = g.Key.DocDueDate,
+                                    CardCode = g.Key.CardCode,
+                                    CardName = g.Key.CardName,
+                                    County = g.Key.County,
+                                    Descript = g.Key.Descript,
+                                    ShipToCode = g.Key.ShipToCode,
+                                    Transporter = g.Key.Transporter,
+                                    Address = g.Key.Address,
+                                    Remark = g.Key.Remark,
+                                    Price = g.Sum(y => y.Price * y.Quantity)
+                                }).Skip((page - 1) * size).Take(size).ToListAsync(); 
 
-                if (response.Count != 0)
+                if (response.Count!=0)
                 {
                     return Ok(response);
                 }
