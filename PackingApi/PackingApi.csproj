@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
+    <AspNetCoreModuleName>AspNetCoreModule</AspNetCoreModuleName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,7 +22,6 @@
     <Folder Include="Areas\Readme.txt\Data\" />
     <Folder Include="Areas\Readme.txt\Models\" />
     <Folder Include="Areas\Readme.txt\Views\" />
-    <Folder Include="Models\Responses\" />
   </ItemGroup>
 
 </Project>

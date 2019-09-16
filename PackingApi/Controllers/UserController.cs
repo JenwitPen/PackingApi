@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PackingApi.Models.DB;
+using PackingApi.Models.Requests;
 
 namespace PackingApi.Controllers
 {
@@ -21,15 +22,18 @@ namespace PackingApi.Controllers
             this.db = packingDBContext;
         }
         // GET api/values
-        [HttpGet]
-        public async Task<ActionResult> selectUser()
+        [HttpPost]
+        public async Task<ActionResult> selectUser([FromBody] selectUserRequest selectUserRequest)
         {
             try
             {
                 var response = await (from user in db.TbmUser
-                                      select user).ToListAsync();
+                                      where user.UserName== selectUserRequest.UserName.Trim() &&
+                                      user.Password== selectUserRequest.Password.Trim() &&
+                                      user.Active==true
+                                      select new { user.UserId,user.UserName}).FirstOrDefaultAsync();
 
-                if (response.Count != 0)
+                if (response!=null)
                 {
                     return Ok(response);
                 }

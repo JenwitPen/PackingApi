@@ -22,13 +22,18 @@ namespace PackingApi.Controllers
             this.db = packingDBContext;
         }
         // GET api/values
-        [HttpGet]
-        public async Task<ActionResult> selectInvoice(int page = 1, int size = 10)
+        [HttpPost]
+        public async Task<ActionResult> selectInvoice([FromBody]selectInvoiceRequest selectInvoiceRequest)
         {
             try
             {
                 var response = await (from x in db.TbtInvoice
-                                      where x.FlagPick != true
+                                      where x.FlagPick != true &&
+                                      (String.IsNullOrEmpty(selectInvoiceRequest.DocNum) || x.DocNum == selectInvoiceRequest.DocNum) &&
+                                      (String.IsNullOrEmpty(selectInvoiceRequest.CardName) || x.CardName.Contains(selectInvoiceRequest.CardName)) &&
+                                      (String.IsNullOrEmpty(selectInvoiceRequest.County) || x.County == selectInvoiceRequest.County) &&
+                                      (String.IsNullOrEmpty(selectInvoiceRequest.Region) || x.Descript == selectInvoiceRequest.Region) &&
+                                      (null == selectInvoiceRequest.DocDueDate || x.DocDueDate.Value.Date == selectInvoiceRequest.DocDueDate.Value.Date)
                                       group x by new
                                       {
                                           x.DocNum,
@@ -43,7 +48,7 @@ namespace PackingApi.Controllers
                                           x.Address,
                                           x.Remark
                                       } into g
-                                      select new selectInvoiceRequest
+                                      select new selectInvoiceRespone
                                       {
                                           DocNum = g.Key.DocNum,
                                           DocDate = g.Key.DocDate,
@@ -57,7 +62,7 @@ namespace PackingApi.Controllers
                                           Address = g.Key.Address,
                                           Remark = g.Key.Remark,
                                           Price = g.Sum(y => y.Price * y.Quantity)
-                                      }).Skip((page - 1) * size).Take(size).ToListAsync();
+                                      }).Skip((selectInvoiceRequest.page - 1) * selectInvoiceRequest.size).Take(selectInvoiceRequest.size).ToListAsync();
 
                 if (response.Count != 0)
                 {

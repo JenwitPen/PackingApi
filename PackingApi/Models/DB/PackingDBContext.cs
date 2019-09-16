@@ -20,8 +20,8 @@ namespace PackingApi.Models.DB
         public virtual DbSet<TbtInvoice> TbtInvoice { get; set; }
         public virtual DbSet<TbtPick> TbtPick { get; set; }
         public virtual DbSet<TbtPickInvoice> TbtPickInvoice { get; set; }
-  
 
+   
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.HasAnnotation("ProductVersion", "2.2.6-servicing-10079");

@@ -6,14 +6,13 @@ using System.Threading.Tasks;
 
 namespace PackingApi.Models.Requests
 {
-    public class selectInvoiceRequest
+    public class selectInvoicePickRequest
     {
     
-        public DateTime? DocDueDate { get; set; }
-        public string County { get; set; }
-        public string DocNum { get; set; }
-        public string Region { get; set; }
-        public string CardName { get; set; }
+     
+        public string PickNo { get; set; }
+        [Required]
+        public int UserID { get; set; }
         [Required]
         public int page { get; set; } = 1;
         [Required]

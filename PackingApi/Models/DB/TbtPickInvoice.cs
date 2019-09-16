@@ -9,9 +9,9 @@ namespace PackingApi.Models.DB
         public string PickNo { get; set; }
         public string DocNum { get; set; }
         public string ItemCode { get; set; }
-        public bool? PickFlag { get; set; }
+        public bool? FlagPack { get; set; }
         public DateTime? CreateDate { get; set; }
-        public int? CrateUser { get; set; }
+        public int? CreateUser { get; set; }
         public DateTime? UpdateDate { get; set; }
         public int? UpdateUser { get; set; }
         public double? CardCode { get; set; }
