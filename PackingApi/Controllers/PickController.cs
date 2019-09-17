@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PackingApi.Models.DB;
 using PackingApi.Models.Requests;
+using PackingApi.Models.Responses;
 
 namespace PackingApi.Controllers
 {
@@ -41,7 +42,7 @@ namespace PackingApi.Controllers
                 PackNo = getRunNo((int)mRun);
 
 
-                db.TbtPickInvoice.AddRange(data.Select( x => new TbtPickInvoice
+                db.TbtPickInvoice.AddRange(data.Select(x => new TbtPickInvoice
                 {
                     Address = x.Address,
                     BinCode = x.BinCode,
@@ -95,7 +96,7 @@ namespace PackingApi.Controllers
                                       where ivP.Active == true && ivP.CrateUser == selectInvoicePickRequest.UserID &&
                                       (string.IsNullOrEmpty(selectInvoicePickRequest.PickNo) || ivP.PickNo == selectInvoicePickRequest.PickNo)
                                       select ivP).Skip((selectInvoicePickRequest.page - 1) * selectInvoicePickRequest.size).Take(selectInvoicePickRequest.size).ToListAsync();
-            if (response.Count != 0)
+                if (response.Count != 0)
                 {
                     return Ok(response);
                 }
@@ -111,6 +112,41 @@ namespace PackingApi.Controllers
                 return StatusCode(500, ex);
             }
         }
+
+        [HttpGet("{PickNo}")]
+        public async Task<ActionResult> selectPickItemGroup(String PickNo)
+        {
+
+            try
+            {
+                var response = await (from Piv in db.TbtPickInvoice
+                                      join iG in db.TbmItemGroup on Piv.ItemCode.Trim().Substring(0, 1) equals iG.ItemGrpPrefix.Trim()
+                                      where Piv.PickNo == PickNo
+                                      group iG by iG into g
+                                      select new selectPickItemGroupResponse
+                                      {
+                                          ItemGrpCode = g.Key.ItemGrpCode,
+                                          ItemGrpName = g.Key.ItemGrpName,
+                                          Qty = g.Count()
+                                      }
+                                      ).ToListAsync();
+                if (response.Count != 0)
+                {
+                    return Ok(response);
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+        }
+
         private String getRunNo(int runNo)
         {
             String strZero = "";

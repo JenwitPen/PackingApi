@@ -27,42 +27,53 @@ namespace PackingApi.Controllers
         {
             try
             {
-                var response = await (from x in db.TbtInvoice
-                                      where x.FlagPick != true &&
-                                      (String.IsNullOrEmpty(selectInvoiceRequest.DocNum) || x.DocNum == selectInvoiceRequest.DocNum) &&
-                                      (String.IsNullOrEmpty(selectInvoiceRequest.CardName) || x.CardName.Contains(selectInvoiceRequest.CardName)) &&
-                                      (String.IsNullOrEmpty(selectInvoiceRequest.County) || x.County == selectInvoiceRequest.County) &&
-                                      (String.IsNullOrEmpty(selectInvoiceRequest.Region) || x.Descript == selectInvoiceRequest.Region) &&
-                                      (null == selectInvoiceRequest.DocDueDate || x.DocDueDate.Value.Date == selectInvoiceRequest.DocDueDate.Value.Date)
-                                      group x by new
-                                      {
-                                          x.DocNum,
-                                          x.DocDate,
-                                          x.DocDueDate,
-                                          x.CardCode,
-                                          x.CardName,
-                                          x.County,
-                                          x.Descript,
-                                          x.ShipToCode,
-                                          x.Transporter,
-                                          x.Address,
-                                          x.Remark
-                                      } into g
-                                      select new selectInvoiceRespone
-                                      {
-                                          DocNum = g.Key.DocNum,
-                                          DocDate = g.Key.DocDate,
-                                          DocDueDate = g.Key.DocDueDate,
-                                          CardCode = g.Key.CardCode,
-                                          CardName = g.Key.CardName,
-                                          County = g.Key.County,
-                                          Descript = g.Key.Descript,
-                                          ShipToCode = g.Key.ShipToCode,
-                                          Transporter = g.Key.Transporter,
-                                          Address = g.Key.Address,
-                                          Remark = g.Key.Remark,
-                                          Price = g.Sum(y => y.Price * y.Quantity)
-                                      }).Skip((selectInvoiceRequest.page - 1) * selectInvoiceRequest.size).Take(selectInvoiceRequest.size).ToListAsync();
+
+                var data = await (from x in db.TbtInvoice
+                                  where x.FlagPick != true &&
+                                  (String.IsNullOrEmpty(selectInvoiceRequest.DocNum) || x.DocNum == selectInvoiceRequest.DocNum) &&
+                                  (String.IsNullOrEmpty(selectInvoiceRequest.CardName) || x.CardName.Contains(selectInvoiceRequest.CardName)) &&
+                                  (String.IsNullOrEmpty(selectInvoiceRequest.County) || x.County == selectInvoiceRequest.County) &&
+                                  (String.IsNullOrEmpty(selectInvoiceRequest.Region) || x.Descript == selectInvoiceRequest.Region)
+                                  select x).ToListAsync();
+                if (selectInvoiceRequest.StartDocDueDate != null)
+                {
+                    data= data.Where(i => i.DocDueDate >= selectInvoiceRequest.StartDocDueDate).ToList();
+                }
+                if (selectInvoiceRequest.EndDocDueDate != null)
+                {
+                    data= data.Where(i => i.DocDueDate <= selectInvoiceRequest.EndDocDueDate).ToList();
+                }
+                var response = (from x in data
+                                group x by new
+                                {
+                                    x.DocNum,
+                                    x.DocDate,
+                                    x.DocDueDate,
+                                    x.CardCode,
+                                    x.CardName,
+                                    x.County,
+                                    x.Descript,
+                                    x.ShipToCode,
+                                    x.Transporter,
+                                    x.Address,
+                                    x.Remark
+                                } into g
+                                orderby g.Key.DocDueDate
+                                select new selectInvoiceRespone
+                                {
+                                    DocNum = g.Key.DocNum,
+                                    DocDate = g.Key.DocDate,
+                                    DocDueDate = g.Key.DocDueDate,
+                                    CardCode = g.Key.CardCode,
+                                    CardName = g.Key.CardName,
+                                    County = g.Key.County,
+                                    Descript = g.Key.Descript,
+                                    ShipToCode = g.Key.ShipToCode,
+                                    Transporter = g.Key.Transporter,
+                                    Address = g.Key.Address,
+                                    Remark = g.Key.Remark,
+                                    Price = g.Sum(y => y.Price * y.Quantity)
+                                }).Skip((selectInvoiceRequest.page - 1) * selectInvoiceRequest.size).Take(selectInvoiceRequest.size).ToList();
 
                 if (response.Count != 0)
                 {

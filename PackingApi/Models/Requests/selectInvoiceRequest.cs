@@ -9,7 +9,8 @@ namespace PackingApi.Models.Requests
     public class selectInvoiceRequest
     {
     
-        public DateTime? DocDueDate { get; set; }
+        public DateTime? StartDocDueDate { get; set; }
+        public DateTime? EndDocDueDate { get; set; }
         public string County { get; set; }
         public string DocNum { get; set; }
         public string Region { get; set; }

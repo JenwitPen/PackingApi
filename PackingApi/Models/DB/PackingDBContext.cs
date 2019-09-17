@@ -15,16 +15,32 @@ namespace PackingApi.Models.DB
         {
         }
 
+        public virtual DbSet<TbmItemGroup> TbmItemGroup { get; set; }
         public virtual DbSet<TbmRunNo> TbmRunNo { get; set; }
         public virtual DbSet<TbmUser> TbmUser { get; set; }
         public virtual DbSet<TbtInvoice> TbtInvoice { get; set; }
         public virtual DbSet<TbtPick> TbtPick { get; set; }
         public virtual DbSet<TbtPickInvoice> TbtPickInvoice { get; set; }
 
-   
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.HasAnnotation("ProductVersion", "2.2.6-servicing-10079");
+
+            modelBuilder.Entity<TbmItemGroup>(entity =>
+            {
+                entity.HasKey(e => e.ItemGrpCode);
+
+                entity.ToTable("tbm_ItemGroup");
+
+                entity.Property(e => e.ItemGrpCode)
+                    .HasMaxLength(50)
+                    .ValueGeneratedNever();
+
+                entity.Property(e => e.ItemGrpName).HasMaxLength(50);
+
+                entity.Property(e => e.ItemGrpPrefix).HasMaxLength(50);
+            });
 
             modelBuilder.Entity<TbmRunNo>(entity =>
             {
