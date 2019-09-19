@@ -21,6 +21,7 @@ namespace PackingApi.Models.DB
         public virtual DbSet<TbtInvoice> TbtInvoice { get; set; }
         public virtual DbSet<TbtPick> TbtPick { get; set; }
         public virtual DbSet<TbtPickInvoice> TbtPickInvoice { get; set; }
+        public virtual DbSet<TbtPickItem> TbtPickItem { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -127,6 +128,24 @@ namespace PackingApi.Models.DB
                     .HasMaxLength(50);
 
                 entity.Property(e => e.PickNo).HasMaxLength(50);
+
+                entity.Property(e => e.UpdateDate).HasColumnType("datetime");
+            });
+
+            modelBuilder.Entity<TbtPickItem>(entity =>
+            {
+                entity.HasKey(e => e.ItemCode)
+                    .HasName("PK_tbt_PickItem");
+
+                entity.ToTable("tbt_Pick_Item");
+
+                entity.Property(e => e.ItemCode)
+                    .HasMaxLength(50)
+                    .ValueGeneratedNever();
+
+                entity.Property(e => e.CreateDate).HasColumnType("datetime");
+
+                entity.Property(e => e.Isbn).HasMaxLength(50);
 
                 entity.Property(e => e.UpdateDate).HasColumnType("datetime");
             });

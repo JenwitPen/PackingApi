@@ -69,7 +69,7 @@ namespace PackingApi.Controllers
                 db.TbtPick.Add(new TbtPick
                 {
                     PickNo = PackNo,
-                    CrateUser = updateInvoicePickRequest.UserId,
+                    CreateUser = updateInvoicePickRequest.UserId,
                     Active = true,
                     CreateDate = DateTime.Now,
                     Status = "Open"
@@ -92,10 +92,11 @@ namespace PackingApi.Controllers
 
             try
             {
-                var response = await (from ivP in db.TbtPick
-                                      where ivP.Active == true && ivP.CrateUser == selectInvoicePickRequest.UserID &&
-                                      (string.IsNullOrEmpty(selectInvoicePickRequest.PickNo) || ivP.PickNo == selectInvoicePickRequest.PickNo)
-                                      select ivP).Skip((selectInvoicePickRequest.page - 1) * selectInvoicePickRequest.size).Take(selectInvoicePickRequest.size).ToListAsync();
+                var response = await (from p in db.TbtPick
+                                      join inP in db.TbtPickInvoice on p.PickNo equals inP.PickNo                           
+                                      where p.Active == true && p.CreateUser == selectInvoicePickRequest.UserID &&
+                                      (string.IsNullOrEmpty(selectInvoicePickRequest.PickNo) || p.PickNo == selectInvoicePickRequest.PickNo)
+                                      select new { p.PickNo, p.Status, inP.Quantity,inP.Price}).GroupBy(x=>new { x.PickNo,x.Status}).Select(g => new { Status = g.Key.Status, PickNo=g.Key.PickNo, TotalPrice =g.Sum(x=>x.Quantity*x.Price)}).Skip((selectInvoicePickRequest.page - 1) * selectInvoicePickRequest.size).Take(selectInvoicePickRequest.size).ToListAsync();
                 if (response.Count != 0)
                 {
                     return Ok(response);
@@ -147,6 +148,63 @@ namespace PackingApi.Controllers
             }
         }
 
+        [HttpGet("{PickNo}")]
+        public async Task<ActionResult> selectPickItem(String PickNo)
+        {
+
+            try
+            {
+                var response = await (from Piv in db.TbtPickInvoice             
+                                      where Piv.PickNo == PickNo
+                                      select Piv
+                                      ).ToListAsync();
+                if (response.Count != 0)
+                {
+                    return Ok(response);
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+        }
+        [HttpPost]
+        public async Task<ActionResult> selectPickItem([FromBody] selectPickItemRequest selectPickItemRequest)
+        {
+
+            try
+            {
+                var itemg = (from i in db.TbmItemGroup
+                             where i.ItemGrpCode == selectPickItemRequest.ItemGrpCode
+                             select i).FirstOrDefault();
+                var response = await (from Piv in db.TbtPickInvoice
+                                      join PItem in db.TbtPickItem on Piv.ItemCode equals PItem.ItemCode into ps
+                                      from p in ps.DefaultIfEmpty()
+                                      where Piv.PickNo == selectPickItemRequest.PickNo && Piv.ItemCode.Trim().Substring(0, 1) == itemg.ItemGrpPrefix
+                                      select new { Location = Piv.BinCode, Piv.ItemCode, ItemName = Piv.Dscription, Piv.Quantity, p.Isbn }
+                                      ).ToListAsync();
+                if (response.Count != 0)
+                {
+                    return Ok(response);
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+        }
         private String getRunNo(int runNo)
         {
             String strZero = "";
