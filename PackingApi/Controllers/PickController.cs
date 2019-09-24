@@ -93,10 +93,10 @@ namespace PackingApi.Controllers
             try
             {
                 var response = await (from p in db.TbtPick
-                                      join inP in db.TbtPickInvoice on p.PickNo equals inP.PickNo                           
+                                      join inP in db.TbtPickInvoice on p.PickNo equals inP.PickNo
                                       where p.Active == true && p.CreateUser == selectInvoicePickRequest.UserID &&
                                       (string.IsNullOrEmpty(selectInvoicePickRequest.PickNo) || p.PickNo == selectInvoicePickRequest.PickNo)
-                                      select new { p.PickNo, p.Status, inP.Quantity,inP.Price}).GroupBy(x=>new { x.PickNo,x.Status}).Select(g => new { Status = g.Key.Status, PickNo=g.Key.PickNo, TotalPrice =g.Sum(x=>x.Quantity*x.Price)}).Skip((selectInvoicePickRequest.page - 1) * selectInvoicePickRequest.size).Take(selectInvoicePickRequest.size).ToListAsync();
+                                      select new { p.PickNo, p.Status, inP.Quantity, inP.Price }).GroupBy(x => new { x.PickNo, x.Status }).Select(g => new { Status = g.Key.Status, PickNo = g.Key.PickNo, TotalPrice = g.Sum(x => x.Quantity * x.Price) }).Skip((selectInvoicePickRequest.page - 1) * selectInvoicePickRequest.size).Take(selectInvoicePickRequest.size).ToListAsync();
                 if (response.Count != 0)
                 {
                     return Ok(response);
@@ -123,14 +123,14 @@ namespace PackingApi.Controllers
                 var response = await (from Piv in db.TbtPickInvoice
                                       join iG in db.TbmItemGroup on Piv.ItemCode.Trim().Substring(0, 1) equals iG.ItemGrpPrefix.Trim()
                                       where Piv.PickNo == PickNo
-                                      group iG by iG into g
-                                      select new selectPickItemGroupResponse
+                                      select new { Piv, iG }).GroupBy(p => new { p.iG.ItemGrpCode, p.iG.ItemGrpName })
+                                      .Select(g => new selectPickItemGroupResponse
                                       {
                                           ItemGrpCode = g.Key.ItemGrpCode,
                                           ItemGrpName = g.Key.ItemGrpName,
-                                          Qty = g.Count()
-                                      }
-                                      ).ToListAsync();
+                                          Qty = (int)g.Sum(s => s.Piv.Quantity),
+                                          Price = (double)g.Sum(s => s.Piv.Price * s.Piv.Quantity)
+                                      }).ToListAsync();
                 if (response.Count != 0)
                 {
                     return Ok(response);
@@ -148,19 +148,38 @@ namespace PackingApi.Controllers
             }
         }
 
-        [HttpGet("{PickNo}")]
-        public async Task<ActionResult> selectPickItem(String PickNo)
+        [HttpPost]
+        public async Task<ActionResult> selectPickItemByGroup([FromBody]  selectPickItemByGroupRequest selectPickItemByGroupRequest)
         {
 
             try
             {
-                var response = await (from Piv in db.TbtPickInvoice             
-                                      where Piv.PickNo == PickNo
-                                      select Piv
-                                      ).ToListAsync();
-                if (response.Count != 0)
+                var iGroup = await db.TbmItemGroup.Where(w => w.ItemGrpCode == selectPickItemByGroupRequest.ItemGrpCode).FirstOrDefaultAsync();
+                var data = await (from Piv in db.TbtPickInvoice
+                                  where Piv.PickNo == selectPickItemByGroupRequest.PickNo && Piv.ItemCode.Trim().Substring(0, 1) == iGroup.ItemGrpPrefix.Trim()
+                                  select Piv).ToListAsync();
+                selectPickItemByGroupReponse selectPickItemByGroup = new selectPickItemByGroupReponse();
+                if (data != null)
                 {
-                    return Ok(response);
+
+                    selectPickItemByGroup.ItemGrpName = iGroup.ItemGrpName;
+                    selectPickItemByGroup.PickNo = selectPickItemByGroupRequest.PickNo;
+                    selectPickItemByGroup.DocDueDate = data.FirstOrDefault().DocDueDate;
+
+                    selectPickItemByGroup.selectPickItems = data.Select(i => new selectPickItem
+                    {
+                        BinCode = i.BinCode,
+                        Dscription = i.Dscription,
+                        Isbn = "",
+                        ItemCode = i.ItemCode,
+                        Quantity = (int)i.Quantity
+                    }).ToList();
+                }
+
+
+                if (selectPickItemByGroup != null)
+                {
+                    return Ok(selectPickItemByGroup);
                 }
                 else
                 {
@@ -183,6 +202,7 @@ namespace PackingApi.Controllers
                 var itemg = (from i in db.TbmItemGroup
                              where i.ItemGrpCode == selectPickItemRequest.ItemGrpCode
                              select i).FirstOrDefault();
+
                 var response = await (from Piv in db.TbtPickInvoice
                                       join PItem in db.TbtPickItem on Piv.ItemCode equals PItem.ItemCode into ps
                                       from p in ps.DefaultIfEmpty()
