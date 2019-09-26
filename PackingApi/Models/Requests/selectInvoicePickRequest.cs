@@ -12,8 +12,6 @@ namespace PackingApi.Models.Requests
      
         public string PickNo { get; set; }
         [Required]
-        public int UserID { get; set; }
-        [Required]
         public int page { get; set; } = 1;
         [Required]
         public int size { get; set; } = 10;

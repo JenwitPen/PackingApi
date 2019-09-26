@@ -42,7 +42,7 @@ namespace PackingApi.Controllers
                 PackNo = getRunNo((int)mRun);
 
 
-                db.TbtPickInvoice.AddRange(data.Select(x => new TbtPickInvoice
+                db.TbtOrder.AddRange(data.Select(x => new TbtOrder
                 {
                     Address = x.Address,
                     BinCode = x.BinCode,
@@ -63,17 +63,22 @@ namespace PackingApi.Controllers
                     ShipToCode = x.ShipToCode,
                     Transporter = x.Transporter,
                     WhsCode = x.WhsCode,
-                    PickNo = PackNo
+                  Isbn=x.Isbn
                 }));
-
-                db.TbtPick.Add(new TbtPick
+                List<TbtPickItem> tbtPickItems = new List<TbtPickItem>();
+                foreach (var i in data)
                 {
-                    PickNo = PackNo,
-                    CreateUser = updateInvoicePickRequest.UserId,
-                    Active = true,
-                    CreateDate = DateTime.Now,
-                    Status = "Open"
-                });
+                    tbtPickItems.Add(
+                    new TbtPickItem
+                    {
+                        PickNo = PackNo,
+                        CreateUser = updateInvoicePickRequest.UserId,
+                        CreateDate = DateTime.Now,
+                        ItemCode=i.ItemCode
+                    });
+
+                }
+                db.TbtPickItem.AddRange(tbtPickItems);
                 RunNo.RunNo = mRun + 1;
                 db.SaveChanges();
                 return Ok(new updateInvoicePackRespone { PackNo = PackNo });
@@ -89,14 +94,20 @@ namespace PackingApi.Controllers
         [HttpPost]
         public async Task<ActionResult> selectInvoicePick([FromBody] selectInvoicePickRequest selectInvoicePickRequest)
         {
-
             try
             {
-                var response = await (from p in db.TbtPick
-                                      join inP in db.TbtPickInvoice on p.PickNo equals inP.PickNo
-                                      where p.Active == true && p.CreateUser == selectInvoicePickRequest.UserID &&
-                                      (string.IsNullOrEmpty(selectInvoicePickRequest.PickNo) || p.PickNo == selectInvoicePickRequest.PickNo)
-                                      select new { p.PickNo, p.Status, inP.Quantity, inP.Price }).GroupBy(x => new { x.PickNo, x.Status }).Select(g => new { Status = g.Key.Status, PickNo = g.Key.PickNo, TotalPrice = g.Sum(x => x.Quantity * x.Price) }).Skip((selectInvoicePickRequest.page - 1) * selectInvoicePickRequest.size).Take(selectInvoicePickRequest.size).ToListAsync();
+                var response = await (from p in db.TbtPickItem
+                                      join o in db.TbtOrder on p.ItemCode equals o.ItemCode
+                                      where (string.IsNullOrEmpty(selectInvoicePickRequest.PickNo) || p.PickNo == selectInvoicePickRequest.PickNo)
+                                      select new { p.PickNo,o.DocNum, o.Quantity, o.Price,p.FlagPick }).GroupBy(x => new {  x.PickNo })
+                                      .Select(g => new {
+                                          Status = g.Sum(x=>x.FlagPick==true?1:0)==0?"Open": g.Sum(x => x.FlagPick == true ? 0 : 1) == 0? "Complate" : "In Progress",
+                                          PickNo = g.Key.PickNo,
+                                          TotalPrice = g.Sum(x => x.Quantity * x.Price),
+                                          TotalDocNum=g.Select(x=>x.DocNum).Distinct().Count()
+                                      }
+                                      )
+                                      .Skip((selectInvoicePickRequest.page - 1) * selectInvoicePickRequest.size).Take(selectInvoicePickRequest.size).ToListAsync();
                 if (response.Count != 0)
                 {
                     return Ok(response);
@@ -120,16 +131,14 @@ namespace PackingApi.Controllers
 
             try
             {
-                var response = await (from Piv in db.TbtPickInvoice
-                                      join iG in db.TbmItemGroup on Piv.ItemCode.Trim().Substring(0, 1) equals iG.ItemGrpPrefix.Trim()
-                                      where Piv.PickNo == PickNo
-                                      select new { Piv, iG }).GroupBy(p => new { p.iG.ItemGrpCode, p.iG.ItemGrpName })
-                                      .Select(g => new selectPickItemGroupResponse
-                                      {
-                                          ItemGrpCode = g.Key.ItemGrpCode,
-                                          ItemGrpName = g.Key.ItemGrpName,
-                                          Qty = (int)g.Sum(s => s.Piv.Quantity),
-                                          Price = (double)g.Sum(s => s.Piv.Price * s.Piv.Quantity)
+                var response = await (from Pi in db.TbtPickItem
+                                      join iG in db.TbmItemGroup on Pi.ItemCode.Trim().Substring(0, 1) equals iG.ItemGrpPrefix.Trim()
+                                      where Pi.PickNo == PickNo
+                                      select new { iG.ItemGrpCode, iG.ItemGrpName, Pi.FlagPick }).GroupBy(x => new {x.ItemGrpCode,x.ItemGrpName}).
+                                      Select(y=> new selectPickItemGroupResponse {
+                                          ItemGrpCode = y.Key.ItemGrpCode,
+                                       ItemGrpName=   y.Key.ItemGrpName,
+                                       Status= y.Sum(x => x.FlagPick == true ? 1 : 0) == 0 ? "Open" : y.Sum(x => x.FlagPick == true ? 0 : 1) == 0 ? "Confirm" : "In Progress",
                                       }).ToListAsync();
                 if (response.Count != 0)
                 {
@@ -155,9 +164,11 @@ namespace PackingApi.Controllers
             try
             {
                 var iGroup = await db.TbmItemGroup.Where(w => w.ItemGrpCode == selectPickItemByGroupRequest.ItemGrpCode).FirstOrDefaultAsync();
-                var data = await (from Piv in db.TbtPickInvoice
-                                  where Piv.PickNo == selectPickItemByGroupRequest.PickNo && Piv.ItemCode.Trim().Substring(0, 1) == iGroup.ItemGrpPrefix.Trim()
-                                  select Piv).ToListAsync();
+                var data = await (from PItem in db.TbtPickItem
+                                  join O in db.TbtOrder on PItem.ItemCode equals O.ItemCode into gj
+                                  from x in gj.DefaultIfEmpty()
+                                  where PItem.PickNo == selectPickItemByGroupRequest.PickNo && PItem.ItemCode.Trim().Substring(0, 1) == iGroup.ItemGrpPrefix.Trim()
+                                  select new { x.DocDueDate, x.BinCode, x.Dscription, PItem.ItemCode, x.Quantity, x.Isbn, PItem.FlagPick }).Skip((selectPickItemByGroupRequest.page - 1) * selectPickItemByGroupRequest.size).Take(selectPickItemByGroupRequest.size).ToListAsync();
                 selectPickItemByGroupReponse selectPickItemByGroup = new selectPickItemByGroupReponse();
                 if (data != null)
                 {
@@ -170,10 +181,11 @@ namespace PackingApi.Controllers
                     {
                         BinCode = i.BinCode,
                         Dscription = i.Dscription,
-                        Isbn = "",
+                        Isbn = i.Isbn,
                         ItemCode = i.ItemCode,
-                        Quantity = (int)i.Quantity
-                    }).ToList();
+                        Quantity = (int)i.Quantity,
+                        FlagPick = i.FlagPick != null ? (bool)i.FlagPick : false
+                    }).OrderBy(x => x.BinCode).ToList();
                 }
 
 
@@ -193,38 +205,38 @@ namespace PackingApi.Controllers
                 return StatusCode(500, ex);
             }
         }
-        [HttpPost]
-        public async Task<ActionResult> selectPickItem([FromBody] selectPickItemRequest selectPickItemRequest)
-        {
+        //[HttpPost]
+        //public async Task<ActionResult> selectPickItem([FromBody] selectPickItemRequest selectPickItemRequest)
+        //{
 
-            try
-            {
-                var itemg = (from i in db.TbmItemGroup
-                             where i.ItemGrpCode == selectPickItemRequest.ItemGrpCode
-                             select i).FirstOrDefault();
+        //    try
+        //    {
+        //        var itemg = (from i in db.TbmItemGroup
+        //                     where i.ItemGrpCode == selectPickItemRequest.ItemGrpCode
+        //                     select i).FirstOrDefault();
 
-                var response = await (from Piv in db.TbtPickInvoice
-                                      join PItem in db.TbtPickItem on Piv.ItemCode equals PItem.ItemCode into ps
-                                      from p in ps.DefaultIfEmpty()
-                                      where Piv.PickNo == selectPickItemRequest.PickNo && Piv.ItemCode.Trim().Substring(0, 1) == itemg.ItemGrpPrefix
-                                      select new { Location = Piv.BinCode, Piv.ItemCode, ItemName = Piv.Dscription, Piv.Quantity, p.Isbn }
-                                      ).ToListAsync();
-                if (response.Count != 0)
-                {
-                    return Ok(response);
-                }
-                else
-                {
-                    return NotFound();
-                }
+        //        var response = await (from Piv in db.TbtPickInvoice
+        //                              join PItem in db.TbtPickItem on Piv.ItemCode equals PItem.ItemCode into ps
+        //                              from p in ps.DefaultIfEmpty()
+        //                              where Piv.PickNo == selectPickItemRequest.PickNo && Piv.ItemCode.Trim().Substring(0, 1) == itemg.ItemGrpPrefix
+        //                              select new { Location = Piv.BinCode, Piv.ItemCode, ItemName = Piv.Dscription, Piv.Quantity, p.Isbn }
+        //                              ).ToListAsync();
+        //        if (response.Count != 0)
+        //        {
+        //            return Ok(response);
+        //        }
+        //        else
+        //        {
+        //            return NotFound();
+        //        }
 
-            }
-            catch (Exception ex)
-            {
+        //    }
+        //    catch (Exception ex)
+        //    {
 
-                return StatusCode(500, ex);
-            }
-        }
+        //        return StatusCode(500, ex);
+        //    }
+        //}
         private String getRunNo(int runNo)
         {
             String strZero = "";

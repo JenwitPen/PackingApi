@@ -24,5 +24,6 @@ namespace PackingApi.Models.DB
         public string Transporter { get; set; }
         public string Remark { get; set; }
         public bool? FlagPick { get; set; }
+        public string Isbn { get; set; }
     }
 }

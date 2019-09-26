@@ -9,8 +9,7 @@ namespace PackingApi.Models.Responses
     {
         public string ItemGrpCode { get; set; }
         public string ItemGrpName { get; set; }
-        public int Qty { get; set; }
-        public double Price { get; set; }
-        
+        public string Status { get; set; }
+
     }
 }

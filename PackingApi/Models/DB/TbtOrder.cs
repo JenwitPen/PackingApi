@@ -3,13 +3,11 @@ using System.Collections.Generic;
 
 namespace PackingApi.Models.DB
 {
-    public partial class TbtPickInvoice
+    public partial class TbtOrder
     {
         public int Id { get; set; }
-        public string PickNo { get; set; }
         public string DocNum { get; set; }
         public string ItemCode { get; set; }
-        public bool? FlagPack { get; set; }
         public DateTime? CreateDate { get; set; }
         public int? CreateUser { get; set; }
         public DateTime? UpdateDate { get; set; }
@@ -29,5 +27,6 @@ namespace PackingApi.Models.DB
         public string Address { get; set; }
         public string Transporter { get; set; }
         public string Remark { get; set; }
+        public string Isbn { get; set; }
     }
 }

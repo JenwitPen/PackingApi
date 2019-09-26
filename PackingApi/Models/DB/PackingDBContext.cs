@@ -19,8 +19,7 @@ namespace PackingApi.Models.DB
         public virtual DbSet<TbmRunNo> TbmRunNo { get; set; }
         public virtual DbSet<TbmUser> TbmUser { get; set; }
         public virtual DbSet<TbtInvoice> TbtInvoice { get; set; }
-        public virtual DbSet<TbtPick> TbtPick { get; set; }
-        public virtual DbSet<TbtPickInvoice> TbtPickInvoice { get; set; }
+        public virtual DbSet<TbtOrder> TbtOrder { get; set; }
         public virtual DbSet<TbtPickItem> TbtPickItem { get; set; }
 
 
@@ -85,31 +84,18 @@ namespace PackingApi.Models.DB
                     .IsRequired()
                     .HasMaxLength(50);
 
+                entity.Property(e => e.Isbn)
+                    .HasColumnName("ISBN")
+                    .HasMaxLength(50);
+
                 entity.Property(e => e.ItemCode)
                     .IsRequired()
                     .HasMaxLength(50);
             });
 
-            modelBuilder.Entity<TbtPick>(entity =>
+            modelBuilder.Entity<TbtOrder>(entity =>
             {
-                entity.HasKey(e => e.PickNo);
-
-                entity.ToTable("tbt_Pick");
-
-                entity.Property(e => e.PickNo)
-                    .HasMaxLength(50)
-                    .ValueGeneratedNever();
-
-                entity.Property(e => e.CreateDate).HasColumnType("datetime");
-
-                entity.Property(e => e.Status).HasMaxLength(50);
-
-                entity.Property(e => e.UpdateDate).HasColumnType("datetime");
-            });
-
-            modelBuilder.Entity<TbtPickInvoice>(entity =>
-            {
-                entity.ToTable("tbt_Pick_Invoice");
+                entity.ToTable("tbt_Order");
 
                 entity.Property(e => e.Id).HasColumnName("ID");
 
@@ -123,11 +109,13 @@ namespace PackingApi.Models.DB
                     .IsRequired()
                     .HasMaxLength(50);
 
+                entity.Property(e => e.Isbn)
+                    .HasColumnName("ISBN")
+                    .HasMaxLength(50);
+
                 entity.Property(e => e.ItemCode)
                     .IsRequired()
                     .HasMaxLength(50);
-
-                entity.Property(e => e.PickNo).HasMaxLength(50);
 
                 entity.Property(e => e.UpdateDate).HasColumnType("datetime");
             });
@@ -145,8 +133,7 @@ namespace PackingApi.Models.DB
 
                 entity.Property(e => e.CreateDate).HasColumnType("datetime");
 
-                entity.Property(e => e.Isbn).HasMaxLength(50);
-
+                entity.Property(e => e.PickNo).HasMaxLength(50);   
                 entity.Property(e => e.UpdateDate).HasColumnType("datetime");
             });
         }
