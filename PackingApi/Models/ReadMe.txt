@@ -1,2 +1,3 @@
 ﻿dotnet ef dbcontext scaffold "Server=Localhost;Initial Catalog=PackingDB;MultipleActiveResultSets=true;User ID=sa;Password=1qaz2wsx;Trusted_Connection=false;" Microsoft.EntityFrameworkCore.SqlServer -o Models/DB
-Scaffold-DbContext "Server=Localhost;Initial Catalog=PackingDB;MultipleActiveResultSets=true;User ID=sa;Password=1qaz2wsx;Trusted_Connection=false;" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models/DB
+
+Scaffold-DbContext "Server=Localhost;Initial Catalog=PackingDB;MultipleActiveResultSets=true;User ID=sa;Password=1qaz2wsx;Trusted_Connection=false;" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models/DB -f

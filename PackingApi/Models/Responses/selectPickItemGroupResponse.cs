@@ -10,6 +10,7 @@ namespace PackingApi.Models.Responses
         public string ItemGrpCode { get; set; }
         public string ItemGrpName { get; set; }
         public string Status { get; set; }
+    
 
     }
 }

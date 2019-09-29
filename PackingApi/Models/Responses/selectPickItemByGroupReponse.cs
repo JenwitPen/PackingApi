@@ -22,5 +22,7 @@ namespace PackingApi.Models.Responses
         public string Isbn { get; set; }
         public int Quantity { get; set; }
         public bool FlagPick { get; set; }
+
+
     }
 }

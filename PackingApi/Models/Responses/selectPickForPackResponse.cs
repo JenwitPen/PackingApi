@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace PackingApi.Models.Requests
 {
-    public class selectInvoiceRespone
+    public class selectPickForPackResponse
     {
         public string DocNum { get; set; }
         public DateTime? DocDate { get; set; }
@@ -19,8 +19,6 @@ namespace PackingApi.Models.Requests
         public string Transporter { get; set; }
         public string Address { get; set; }
         public string Remark { get; set; }
-        public string PickNo { get; set; }
-
 
     }
 }
