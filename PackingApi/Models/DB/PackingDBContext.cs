@@ -16,6 +16,7 @@ namespace PackingApi.Models.DB
         }
 
         public virtual DbSet<TbmItemGroup> TbmItemGroup { get; set; }
+        public virtual DbSet<TbmPackage> TbmPackage { get; set; }
         public virtual DbSet<TbmRunNo> TbmRunNo { get; set; }
         public virtual DbSet<TbmUser> TbmUser { get; set; }
         public virtual DbSet<TbtInvoice> TbtInvoice { get; set; }
@@ -40,6 +41,19 @@ namespace PackingApi.Models.DB
                 entity.Property(e => e.ItemGrpName).HasMaxLength(50);
 
                 entity.Property(e => e.ItemGrpPrefix).HasMaxLength(50);
+            });
+
+            modelBuilder.Entity<TbmPackage>(entity =>
+            {
+                entity.HasKey(e => e.PackageId);
+
+                entity.ToTable("tbm_Package");
+
+                entity.Property(e => e.PackageId)
+                    .HasColumnName("PackageID")
+                    .ValueGeneratedNever();
+
+                entity.Property(e => e.PackageName).HasMaxLength(50);
             });
 
             modelBuilder.Entity<TbmRunNo>(entity =>
@@ -137,6 +151,8 @@ namespace PackingApi.Models.DB
                     .HasMaxLength(50);
 
                 entity.Property(e => e.PackNo).HasMaxLength(50);
+
+                entity.Property(e => e.Package).HasMaxLength(50);
 
                 entity.Property(e => e.UpdateDate).HasColumnType("datetime");
             });

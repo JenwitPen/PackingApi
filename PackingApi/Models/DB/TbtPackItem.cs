@@ -14,5 +14,7 @@ namespace PackingApi.Models.DB
         public DateTime? UpdateDate { get; set; }
         public int? UpdateUser { get; set; }
         public string IsbnRecheck { get; set; }
+        public string Package { get; set; }
+        public int? Unit { get; set; }
     }
 }

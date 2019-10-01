@@ -20,7 +20,7 @@ namespace PackingApi.Controllers
         }
         // GET api/values
         [HttpGet]
-        [ResponseCache(Duration = 3600*4)]
+        [ResponseCache(Duration = 3600*8)]
         public async Task<ActionResult> selectRegion()
         {
             try
@@ -48,7 +48,7 @@ namespace PackingApi.Controllers
 
         }
         [HttpGet]
-        [ResponseCache(Duration = 3600 * 4)]
+        [ResponseCache(Duration = 3600 * 8)]
         public async Task<ActionResult> selectCounty()
         {
             try
@@ -57,6 +57,34 @@ namespace PackingApi.Controllers
                                   select new { invoice.County }).Distinct().ToListAsync();
                 List<String> response = new List<string>();
                 data.ForEach(i => response.Add(i.County));
+
+                if (response.Count != 0)
+                {
+                    return Ok(response);
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+
+        }
+        [HttpGet]
+        [ResponseCache(Duration = 3600 * 8)]
+        public async Task<ActionResult> selectPackage()
+        {
+            try
+            {
+                var data = await (from p in db.TbmPackage
+                                  select new { p.PackageName }).Distinct().ToListAsync();
+                List<String> response = new List<string>();
+                data.ForEach(i => response.Add(i.PackageName));
 
                 if (response.Count != 0)
                 {

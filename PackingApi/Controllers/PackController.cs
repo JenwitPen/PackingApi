@@ -188,7 +188,7 @@ namespace PackingApi.Controllers
                 var response = await (from p in db.TbtPackItem
                                       join o in db.TbtOrder on new { p.ItemCode, p.DocNum } equals new { o.ItemCode, o.DocNum }
                                       where  p.PackNo == selectPackListForConfirmRequest.PackNo
-                                      select new { p.ItemCode, o.Descript,o.Quantity, o.Isbn, p.IsbnRecheck }
+                                      select new { p.ItemCode,p.DocNum, o.Dscription,o.Quantity, o.Isbn, p.IsbnRecheck,p.Unit,p.Package }
                                       )
                                       .Skip((selectPackListForConfirmRequest.page - 1) * selectPackListForConfirmRequest.size).Take(selectPackListForConfirmRequest.size).ToListAsync();
                 if (response.Count != 0)
@@ -207,5 +207,41 @@ namespace PackingApi.Controllers
                 return StatusCode(500, ex);
             }
         }
+
+
+        [HttpPost]
+        public async Task<ActionResult> updatePackConfirm([FromBody]List< updatePackConfirmRequest> updatePackConfirmRequests)
+        {
+            String PackNo = "";
+            try
+            {
+                var packs = await (from P in db.TbtPackItem
+                                   join req in updatePackConfirmRequests on new {P.PackNo,P.ItemCode,P.DocNum} equals new { req .PackNo, req .ItemCode, req .DocNum}
+                                   select new TbtPackItem {
+                                       DocNum= P.DocNum,
+                                       ItemCode= P.ItemCode,
+                                       PackNo=P.PackNo,
+                                       FlagPack=true,
+                                       Package=req.Package,
+                                       Unit=req.Unit,
+                                       IsbnRecheck=req.ISBN_Recheck,
+                                       UpdateDate=DateTime.Now,
+                                       UpdateUser=req.UserId
+                                       
+                                   }).ToListAsync();
+                db.UpdateRange(packs);
+                db.SaveChanges();
+                return Ok(new { PackNo = packs.FirstOrDefault().PackNo });
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+
+        }
+
+
     }
 }
