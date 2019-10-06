@@ -19,11 +19,14 @@ namespace PackingApi.Models.DB
         public virtual DbSet<TbmPackage> TbmPackage { get; set; }
         public virtual DbSet<TbmRunNo> TbmRunNo { get; set; }
         public virtual DbSet<TbmUser> TbmUser { get; set; }
+        public virtual DbSet<TbtClearItem> TbtClearItem { get; set; }
         public virtual DbSet<TbtInvoice> TbtInvoice { get; set; }
         public virtual DbSet<TbtOrder> TbtOrder { get; set; }
+        public virtual DbSet<TbtPack> TbtPack { get; set; }
         public virtual DbSet<TbtPackItem> TbtPackItem { get; set; }
         public virtual DbSet<TbtPickItem> TbtPickItem { get; set; }
 
+ 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.HasAnnotation("ProductVersion", "2.2.6-servicing-10079");
@@ -84,6 +87,23 @@ namespace PackingApi.Models.DB
                 entity.Property(e => e.UserName).HasMaxLength(50);
             });
 
+            modelBuilder.Entity<TbtClearItem>(entity =>
+            {
+                entity.HasKey(e => new { e.ItemCode, e.DocNum });
+
+                entity.ToTable("tbt_Clear_Item");
+
+                entity.Property(e => e.ItemCode).HasMaxLength(50);
+
+                entity.Property(e => e.DocNum).HasMaxLength(50);
+
+                entity.Property(e => e.CreateDate).HasColumnType("datetime");
+
+                entity.Property(e => e.TrackNumber).HasMaxLength(50);
+
+                entity.Property(e => e.UpdateDate).HasColumnType("datetime");
+            });
+
             modelBuilder.Entity<TbtInvoice>(entity =>
             {
                 entity.ToTable("tbt_Invoice");
@@ -130,6 +150,23 @@ namespace PackingApi.Models.DB
                 entity.Property(e => e.ItemCode)
                     .IsRequired()
                     .HasMaxLength(50);
+
+                entity.Property(e => e.UpdateDate).HasColumnType("datetime");
+            });
+
+            modelBuilder.Entity<TbtPack>(entity =>
+            {
+                entity.HasKey(e => e.PackNo);
+
+                entity.ToTable("tbt_Pack");
+
+                entity.Property(e => e.PackNo)
+                    .HasMaxLength(50)
+                    .ValueGeneratedNever();
+
+                entity.Property(e => e.CreateDate).HasColumnType("datetime");
+
+                entity.Property(e => e.Package).HasMaxLength(50);
 
                 entity.Property(e => e.UpdateDate).HasColumnType("datetime");
             });

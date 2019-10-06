@@ -84,6 +84,7 @@ namespace PackingApi.Controllers
                 var data = await (from p in db.TbmPackage
                                   select new { p.PackageName }).Distinct().ToListAsync();
                 List<String> response = new List<string>();
+                response.Add("");
                 data.ForEach(i => response.Add(i.PackageName));
 
                 if (response.Count != 0)

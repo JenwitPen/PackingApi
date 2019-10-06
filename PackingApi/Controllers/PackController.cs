@@ -1,11 +1,16 @@
 ﻿using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PackingApi.Helpers;
 using PackingApi.Models.DB;
 using PackingApi.Models.Requests;
+using PackingApi.Models.Responses;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -17,9 +22,11 @@ namespace PackingApi.Controllers
     public class PackController : ControllerBase
     {
         private PackingDBContext db;
-        public PackController(PackingDBContext packingDBContext)
+        private IHostingEnvironment _hostingEnvironment;
+        public PackController(PackingDBContext packingDBContext, IHostingEnvironment environment)
         {
             this.db = packingDBContext;
+            this._hostingEnvironment = environment;
         }
 
         [HttpPost]
@@ -31,7 +38,7 @@ namespace PackingApi.Controllers
                 var data = await (from o in db.TbtOrder
                                   join p in db.TbtPickItem on new { o.ItemCode, o.DocNum } equals new { p.ItemCode, p.DocNum }
                                   join pack in db.TbtPackItem on o.ItemCode equals pack.ItemCode into gpack
-                                  where p.FlagPick == true && gpack.Count()==0 &&
+                                  where p.FlagPick == true && gpack.Count() == 0 &&
                                    (String.IsNullOrEmpty(selectPickForPackRequest.PickNo) || p.PickNo == selectPickForPackRequest.PickNo) &&
                                   (String.IsNullOrEmpty(selectPickForPackRequest.DocNum) || o.DocNum == selectPickForPackRequest.DocNum) &&
                                   (String.IsNullOrEmpty(selectPickForPackRequest.CardName) || o.CardName.Contains(selectPickForPackRequest.CardName)) &&
@@ -185,13 +192,33 @@ namespace PackingApi.Controllers
         {
             try
             {
-                var response = await (from p in db.TbtPackItem
+                selectPackListForConfirmResponse response = new selectPackListForConfirmResponse();
+                var packlist = await (from p in db.TbtPackItem
                                       join o in db.TbtOrder on new { p.ItemCode, p.DocNum } equals new { o.ItemCode, o.DocNum }
-                                      where  p.PackNo == selectPackListForConfirmRequest.PackNo
-                                      select new { p.ItemCode,p.DocNum, o.Dscription,o.Quantity, o.Isbn, p.IsbnRecheck,p.Unit,p.Package }
-                                      )
-                                      .Skip((selectPackListForConfirmRequest.page - 1) * selectPackListForConfirmRequest.size).Take(selectPackListForConfirmRequest.size).ToListAsync();
-                if (response.Count != 0)
+                                      where p.PackNo == selectPackListForConfirmRequest.PackNo
+                                      select new PackListForConfirm
+                                      {
+                                          ItemCode = p.ItemCode,
+                                          DocNum = p.DocNum,
+                                          Dscription = o.Dscription,
+                                          Quantity = o.Quantity,
+                                          Isbn = o.Isbn,
+                                          IsbnRecheck = p.IsbnRecheck,
+                                          Unit = p.Unit,
+                                          Package = p.Package
+                                      }
+                                       )
+                                       .Skip((selectPackListForConfirmRequest.page - 1) * selectPackListForConfirmRequest.size).Take(selectPackListForConfirmRequest.size).ToListAsync();
+                response.PackListForConfirms = packlist;
+                response.PackNo = selectPackListForConfirmRequest.PackNo;
+                var tbtpack = db.TbtPack.Where(x => x.PackNo == selectPackListForConfirmRequest.PackNo).FirstOrDefault();
+                if (tbtpack != null)
+                {
+                    response.Package = tbtpack.Package;
+                    response.Unit = tbtpack.Unit;
+                }
+
+                if (response != null)
                 {
                     return Ok(response);
                 }
@@ -208,30 +235,56 @@ namespace PackingApi.Controllers
             }
         }
 
-
         [HttpPost]
-        public async Task<ActionResult> updatePackConfirm([FromBody]List< updatePackConfirmRequest> updatePackConfirmRequests)
+        public async Task<ActionResult> updatePackConfirm([FromBody] updatePackConfirmRequest updatePackConfirmRequest)
         {
-            String PackNo = "";
+
             try
             {
+                var tbtpack = db.TbtPack.Where(x => x.PackNo == updatePackConfirmRequest.PackNo).FirstOrDefault();
+                if (tbtpack != null)
+                {
+                    tbtpack.Unit = updatePackConfirmRequest.Unit;
+                    tbtpack.Package = updatePackConfirmRequest.Package;
+                    tbtpack.UpdateDate = DateTime.Now;
+                    tbtpack.UpdateUser = updatePackConfirmRequest.UserId;
+                }
+                else
+                {
+                    TbtPack tbtPack = new TbtPack
+                    {
+                        Package = updatePackConfirmRequest.Package,
+                        PackNo = updatePackConfirmRequest.PackNo,
+                        Unit = updatePackConfirmRequest.Unit,
+                        CreateUser = updatePackConfirmRequest.UserId,
+                        CreateDate = DateTime.Now
+                    };
+                    db.TbtPack.Add(tbtPack);
+                }
+
                 var packs = await (from P in db.TbtPackItem
-                                   join req in updatePackConfirmRequests on new {P.PackNo,P.ItemCode,P.DocNum} equals new { req .PackNo, req .ItemCode, req .DocNum}
-                                   select new TbtPackItem {
-                                       DocNum= P.DocNum,
-                                       ItemCode= P.ItemCode,
-                                       PackNo=P.PackNo,
-                                       FlagPack=true,
-                                       Package=req.Package,
-                                       Unit=req.Unit,
-                                       IsbnRecheck=req.ISBN_Recheck,
-                                       UpdateDate=DateTime.Now,
-                                       UpdateUser=req.UserId
-                                       
-                                   }).ToListAsync();
+                                   where P.PackNo == updatePackConfirmRequest.PackNo
+                                   select P).ToListAsync();
+
+                if (updatePackConfirmRequest.Package != "")
+                {
+                    packs.ForEach(x =>
+                    {
+                        x.Package = "";
+                        x.Unit = null;
+                    });
+                }
+                packs.ForEach(x =>
+                {
+                    x.UpdateDate = DateTime.Now;
+                    x.UpdateUser = updatePackConfirmRequest.UserId;
+                    x.FlagPack = true;
+                });
+
                 db.UpdateRange(packs);
+
                 db.SaveChanges();
-                return Ok(new { PackNo = packs.FirstOrDefault().PackNo });
+                return Ok(new { PackNo = updatePackConfirmRequest.PackNo });
 
             }
             catch (Exception ex)
@@ -242,6 +295,159 @@ namespace PackingApi.Controllers
 
         }
 
+        [HttpPost]
+        public async Task<ActionResult> updatePackRecheckIsbn([FromBody] updatePackRecheckIsbnRequest updatePackRecheckIsbnRequest)
+        {
+            try
+            {
+                var packitem = await (from p in db.TbtPackItem
+                                      where p.PackNo == updatePackRecheckIsbnRequest.PackNo &&
+                            p.ItemCode == updatePackRecheckIsbnRequest.ItemCode &&
+                            p.DocNum == updatePackRecheckIsbnRequest.DocNum
+                                      select p).FirstOrDefaultAsync();
+                if (updatePackRecheckIsbnRequest.IsbnRecheck != null) { packitem.IsbnRecheck = updatePackRecheckIsbnRequest.IsbnRecheck; }
+
+
+                if (updatePackRecheckIsbnRequest.Unit != null) { packitem.Unit = updatePackRecheckIsbnRequest.Unit; }
+
+
+                if (updatePackRecheckIsbnRequest.Package != null) { packitem.Package = updatePackRecheckIsbnRequest.Package; }
+
+
+                db.Update(packitem);
+                db.SaveChanges();
+                return Ok();
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+
+        }
+        [HttpPost]
+        public async Task<ActionResult> selectDocumentPrintingList([FromBody] selectDocumentPrintingListRequest selectDocumentPrintingListRequest)
+        {
+            try
+            {
+                var data = await (from o in db.TbtOrder
+                                  join p in db.TbtPackItem on new { o.ItemCode, o.DocNum } equals new { p.ItemCode, p.DocNum }                           
+                                  where p.FlagPack == true &&
+                                   (String.IsNullOrEmpty(selectDocumentPrintingListRequest.PackNo) || p.PackNo == selectDocumentPrintingListRequest.PackNo) &&
+                                  (String.IsNullOrEmpty(selectDocumentPrintingListRequest.DocNum) || o.DocNum == selectDocumentPrintingListRequest.DocNum) &&
+                                  (String.IsNullOrEmpty(selectDocumentPrintingListRequest.CardName) || o.CardName.Contains(selectDocumentPrintingListRequest.CardName)) &&
+                                  (String.IsNullOrEmpty(selectDocumentPrintingListRequest.County) || o.County == selectDocumentPrintingListRequest.County) &&
+                                  (String.IsNullOrEmpty(selectDocumentPrintingListRequest.Region) || o.Descript == selectDocumentPrintingListRequest.Region)
+                                  select new { o, p }).ToListAsync();
+                if (selectDocumentPrintingListRequest.StartDocDueDate != null)
+                {
+                    data = data.Where(i => i.o.DocDueDate >= selectDocumentPrintingListRequest.StartDocDueDate).ToList();
+                }
+                if (selectDocumentPrintingListRequest.EndDocDueDate != null)
+                {
+                    data = data.Where(i => i.o.DocDueDate <= selectDocumentPrintingListRequest.EndDocDueDate).ToList();
+                }
+                var response = (from x in data
+                                group x by new
+                                {
+                                    x.o.DocNum,
+                                    x.p.PackNo,
+                                    x.o.DocDate,
+                                    x.o.DocDueDate,
+                                    x.o.CardCode,
+                                    x.o.CardName,
+                                    x.o.County,
+                                    x.o.Descript,
+                                    x.o.ShipToCode,
+                                    x.o.Transporter,
+                                    x.o.Address,
+                                    x.o.Remark
+                                } into g
+                                orderby g.Key.DocDueDate
+                                select new selectDocumentPrintingListResponse
+                                {
+                                    DocNum = g.Key.DocNum,
+                                    DocDate = g.Key.DocDate,
+                                    DocDueDate = g.Key.DocDueDate,
+                                    CardCode = g.Key.CardCode,
+                                    CardName = g.Key.CardName,
+                                    County = g.Key.County,
+                                    Descript = g.Key.Descript,
+                                    ShipToCode = g.Key.ShipToCode,
+                                    Transporter = g.Key.Transporter,
+                                    Address = g.Key.Address,
+                                    Remark = g.Key.Remark,
+                                    PackNo = g.Key.PackNo,
+                                    Price = g.Sum(y => y.o.Price * y.o.Quantity)
+                                }).Skip((selectDocumentPrintingListRequest.page - 1) * selectDocumentPrintingListRequest.size).Take(selectDocumentPrintingListRequest.size).ToList();
+
+
+                if (response != null)
+                {
+                    return Ok(response);
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+        }
+
+        [HttpPost]
+        public ActionResult printInvoice()
+        {
+            try
+            {
+                var invoice = (from i in db.TbtOrder
+                               where i.DocNum == "1519010001"
+                               select i).FirstOrDefault();
+           
+                string path = _hostingEnvironment.ContentRootPath + "\\Pdf_template\\packing_invoice.pdf";
+                Stream pdfInputStream = new FileStream(path: path, mode: FileMode.Open);
+         
+                FillOutPdf fillOutPdf = new FillOutPdf(_hostingEnvironment.ContentRootPath);
+
+             
+                var data = new Models.PDF.Invoice
+                {
+                    CardCode = invoice.CardCode.ToString(),
+                    CardName = invoice.CardName,
+                    Docnum = invoice.DocNum
+                };
+                Stream resultPDFStream = fillOutPdf.FillForm(pdfInputStream, data);
+                resultPDFStream.Position = 0;          
+                //Download the PDF document in the browser.
+           
+ 
+                if (resultPDFStream.Length != 0)
+                {
+                    FileStreamResult fileStreamResult = new FileStreamResult(resultPDFStream, "application/pdf");
+                    fileStreamResult.FileDownloadName = "packing_invoice.pdf";
+        
+
+                    return fileStreamResult;
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+
+        }
 
     }
+
 }
