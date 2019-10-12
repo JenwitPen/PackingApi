@@ -60,9 +60,11 @@ namespace PackingApi.Helpers
                     form.SetFieldProperty(key, "textfont", font.BaseFont, null);
                     form.RegenerateField(key);
                 }
-                form.SetField("txt_CardCode", model.CardCode);
-                form.SetField("txt_CardName", model.CardName);
-                form.SetField("txt_DocNum", model.Docnum);
+                form.SetField("txt_CustomerName","เจนวิทย์ เพ็ญจำรัส");
+              //  form.SetField("rdb_ans_1","Choice1");
+  
+                //  form.SetField("txt_CardName", model.CardName);
+                //form.SetField("txt_DocNum", model.Docnum);
                 // set this if you want the result PDF to not be editable. 
                 pdfStamper.FormFlattening = true;
                 return outStream;

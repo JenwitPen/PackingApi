@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PackingApi.Models.Requests
 {
-    public class selectPostConfirmListRequest
+    public class selectClearListRequest
     {
         public DateTime? StartDocDueDate { get; set; }
         public DateTime? EndDocDueDate { get; set; }

@@ -1,14 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PackingApi.Helpers;
 using PackingApi.Models.DB;
+using PackingApi.Models.PDF.Process;
 using PackingApi.Models.Requests;
 using PackingApi.Models.Responses;
+using PackingApi.PDF.Models;
 
 namespace PackingApi.Controllers
 {
@@ -19,10 +23,12 @@ namespace PackingApi.Controllers
     public class PickController : ControllerBase
     {
         private PackingDBContext db;
-        public PickController(PackingDBContext packingDBContext)
+        private IHostingEnvironment _hostingEnvironment;
+        public PickController(PackingDBContext packingDBContext,  IHostingEnvironment hostingEnvironment)
         {
             this.db = packingDBContext;
-        }
+            this._hostingEnvironment=hostingEnvironment;
+    }
         // GET api/values
         [HttpPost]
         public async Task<ActionResult> updateInvoicePick([FromBody] updateInvoicePickRequest updateInvoicePickRequest)
@@ -174,7 +180,7 @@ namespace PackingApi.Controllers
                                   from x in gj.DefaultIfEmpty()
                                   where PItem.PickNo == selectPickItemByGroupRequest.PickNo && PItem.ItemCode.Trim().Substring(0, 1) == iGroup.ItemGrpPrefix.Trim()
                                   select new { x.DocDueDate, x.BinCode, x.Dscription, PItem.ItemCode, x.Quantity, x.Isbn, PItem.FlagPick }).Skip((selectPickItemByGroupRequest.page - 1) * selectPickItemByGroupRequest.size).Take(selectPickItemByGroupRequest.size).ToListAsync();
-                selectPickItemByGroupReponse selectPickItemByGroup = new selectPickItemByGroupReponse();
+                PickDocumentModel selectPickItemByGroup = new PickDocumentModel();
                 if (data != null)
                 {
 
@@ -235,7 +241,63 @@ namespace PackingApi.Controllers
                 return StatusCode(500, ex);
             }
         }
-     
-      
+
+        [HttpPost]
+        public async Task<ActionResult> printPickItemByGroup([FromBody]  printPickItemByGroup printPickItemByGroup)
+        {
+
+            try
+            {
+                var iGroup = await db.TbmItemGroup.Where(w => w.ItemGrpCode == printPickItemByGroup.ItemGrpCode).FirstOrDefaultAsync();
+                var data = await (from PItem in db.TbtPickItem
+                                  join O in db.TbtOrder on new { PItem.ItemCode, PItem.DocNum } equals new { O.ItemCode, O.DocNum } into gj
+                                  from x in gj.DefaultIfEmpty()
+                                  where PItem.PickNo == printPickItemByGroup.PickNo && PItem.ItemCode.Trim().Substring(0, 1) == iGroup.ItemGrpPrefix.Trim()
+                                  select new { x.DocDueDate, x.BinCode, x.Dscription, PItem.ItemCode, x.Quantity,x.Price, x.Isbn, PItem.FlagPick }).ToListAsync();
+                PickDocumentModel pickDocumentModel = new PickDocumentModel();
+                if (data != null)
+                {
+
+                    pickDocumentModel.ItemGrpName = iGroup.ItemGrpName;
+                    pickDocumentModel.ItemGrpCode = iGroup.ItemGrpCode;
+                    pickDocumentModel.PickNo = printPickItemByGroup.PickNo;
+                    pickDocumentModel.DocDueDate = data.FirstOrDefault().DocDueDate;
+
+                    pickDocumentModel.selectPickItems = data.Select(i => new selectPickItem
+                    {
+                        BinCode = i.BinCode,
+                        Dscription = i.Dscription,
+                        Isbn = i.Isbn,
+                        ItemCode = i.ItemCode,
+                        Quantity = (int)i.Quantity,
+                        Price =i.Price == null ?0.00:(double) i.Price,
+                        FlagPick = i.FlagPick == null ? false : (bool)i.FlagPick
+
+                    }).OrderBy(x => x.BinCode).ToList();
+                }
+                PickDocument pDoc = new PickDocument(this._hostingEnvironment);
+            
+                Stream resultPDFStream = pDoc.CreatePDF(pickDocumentModel);
+                resultPDFStream.Position = 0;
+                if (resultPDFStream.Length != 0)
+                {
+                    FileStreamResult fileStreamResult = new FileStreamResult(resultPDFStream, "application/pdf");
+                    fileStreamResult.FileDownloadName = "pick_"+ printPickItemByGroup.PickNo+".pdf";
+
+
+                    return fileStreamResult;
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+        }
     }
 }

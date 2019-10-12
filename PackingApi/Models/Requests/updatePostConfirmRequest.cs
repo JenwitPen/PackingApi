@@ -11,6 +11,6 @@ namespace PackingApi.Models.Requests
         public string DocNum { get; set; }
         public bool FlagClear { get; set; }
         public string TrackNumber { get; set; }
-        public int User { get; set; }
+        public int UserId { get; set; }
     }
 }

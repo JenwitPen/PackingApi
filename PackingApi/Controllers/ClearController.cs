@@ -33,13 +33,12 @@ namespace PackingApi.Controllers
                                   join p in db.TbtPackItem on new { o.ItemCode, o.DocNum } equals new { p.ItemCode, p.DocNum }
                                   join c in db.TbtClearItem on new { o.ItemCode, o.DocNum } equals new { c.ItemCode, c.DocNum } into cgroup
                                   from cl in cgroup.DefaultIfEmpty()
-                                  where p.FlagPack == true &&
-                                   (String.IsNullOrEmpty(selectPostConfirmListRequest.PackNo) || p.PackNo == selectPostConfirmListRequest.PackNo) &&
+                                  where p.FlagPack == true && cl.FlagClear != true&&
                                   (String.IsNullOrEmpty(selectPostConfirmListRequest.DocNum) || o.DocNum == selectPostConfirmListRequest.DocNum) &&
                                   (String.IsNullOrEmpty(selectPostConfirmListRequest.CardName) || o.CardName.Contains(selectPostConfirmListRequest.CardName)) &&
                                   (String.IsNullOrEmpty(selectPostConfirmListRequest.County) || o.County == selectPostConfirmListRequest.County) &&
                                   (String.IsNullOrEmpty(selectPostConfirmListRequest.Region) || o.Descript == selectPostConfirmListRequest.Region)
-                                  select new { o, p, cl }).ToListAsync();
+                                  select new { o, p, TrackNumber= cl.TrackNumber==null?"": cl.TrackNumber , FlagClear = cl.FlagClear == null ? false : cl.FlagClear }).ToListAsync();
                 if (selectPostConfirmListRequest.StartDocDueDate != null)
                 {
                     data = data.Where(i => i.o.DocDueDate >= selectPostConfirmListRequest.StartDocDueDate).ToList();
@@ -63,7 +62,8 @@ namespace PackingApi.Controllers
                                     x.o.Transporter,
                                     x.o.Address,
                                     x.o.Remark,
-                                    x.cl.TrackNumber
+                                    x.TrackNumber,
+                                    x.FlagClear
                                 } into g
                                 orderby g.Key.DocDueDate
                                 select new selectPostConfirmListResponse
@@ -80,7 +80,8 @@ namespace PackingApi.Controllers
                                     Address = g.Key.Address,
                                     Remark = g.Key.Remark,
                                     PackNo = g.Key.PackNo,
-                                    TackNumber = g.Key.TrackNumber,
+                                    TrackNumber =  g.Key.TrackNumber,
+                                    FlagClear =(bool) g.Key.FlagClear,
                                     Price = g.Sum(y => y.o.Price * y.o.Quantity)
                                 }).Skip((selectPostConfirmListRequest.page - 1) * selectPostConfirmListRequest.size).Take(selectPostConfirmListRequest.size).ToList();
 
@@ -114,12 +115,12 @@ namespace PackingApi.Controllers
                     clearitem.ForEach(x =>
                     {
                         x.UpdateDate = DateTime.Now;
-                        x.UpdateUser = updatePostConfirmRequest.User;
+                        x.UpdateUser = updatePostConfirmRequest.UserId;
                         x.FlagClear = updatePostConfirmRequest.FlagClear;
                         x.TrackNumber = updatePostConfirmRequest.TrackNumber;
                     }
                     );
-                    db.Update(clearitem);
+                    db.UpdateRange(clearitem);
                 }
                 else
                 {
@@ -128,7 +129,7 @@ namespace PackingApi.Controllers
                                        select new TbtClearItem
                                        {
                                            CreateDate = DateTime.Now,
-                                           CreateUser = updatePostConfirmRequest.User,
+                                           CreateUser = updatePostConfirmRequest.UserId,
                                            DocNum = updatePostConfirmRequest.DocNum,
                                            ItemCode = o.ItemCode,
                                            FlagClear = updatePostConfirmRequest.FlagClear,
@@ -148,6 +149,84 @@ namespace PackingApi.Controllers
                 return StatusCode(500, ex);
             }
 
+        }
+        [HttpPost]
+        public async Task<ActionResult> selectClearList([FromBody] selectClearListRequest selectClearListRequest)
+        {
+            try
+            {
+                var data = await (from o in db.TbtOrder
+                                  join p in db.TbtPackItem on new { o.ItemCode, o.DocNum } equals new { p.ItemCode, p.DocNum }
+                                  join c in db.TbtClearItem on new { o.ItemCode, o.DocNum } equals new { c.ItemCode, c.DocNum } 
+
+                                  where  c.FlagClear == true &&
+                                  (String.IsNullOrEmpty(selectClearListRequest.DocNum) || o.DocNum == selectClearListRequest.DocNum) &&
+                                  (String.IsNullOrEmpty(selectClearListRequest.CardName) || o.CardName.Contains(selectClearListRequest.CardName)) &&
+                                  (String.IsNullOrEmpty(selectClearListRequest.County) || o.County == selectClearListRequest.County) &&
+                                  (String.IsNullOrEmpty(selectClearListRequest.Region) || o.Descript == selectClearListRequest.Region)
+                                  select new { o, p,c }).ToListAsync();
+                if (selectClearListRequest.StartDocDueDate != null)
+                {
+                    data = data.Where(i => i.o.DocDueDate >= selectClearListRequest.StartDocDueDate).ToList();
+                }
+                if (selectClearListRequest.EndDocDueDate != null)
+                {
+                    data = data.Where(i => i.o.DocDueDate <= selectClearListRequest.EndDocDueDate).ToList();
+                }
+                var response = (from x in data
+                                group x by new
+                                {
+                                    x.o.DocNum,
+                                    x.p.PackNo,
+                                    x.o.DocDate,
+                                    x.o.DocDueDate,
+                                    x.o.CardCode,
+                                    x.o.CardName,
+                                    x.o.County,
+                                    x.o.Descript,
+                                    x.o.ShipToCode,
+                                    x.o.Transporter,
+                                    x.o.Address,
+                                    x.o.Remark,
+                                    x.c.TrackNumber,
+                                    x.c.FlagClear
+                                } into g
+                                orderby g.Key.DocDueDate
+                                select new selectPostConfirmListResponse
+                                {
+                                    DocNum = g.Key.DocNum,
+                                    DocDate = g.Key.DocDate,
+                                    DocDueDate = g.Key.DocDueDate,
+                                    CardCode = g.Key.CardCode,
+                                    CardName = g.Key.CardName,
+                                    County = g.Key.County,
+                                    Descript = g.Key.Descript,
+                                    ShipToCode = g.Key.ShipToCode,
+                                    Transporter = g.Key.Transporter,
+                                    Address = g.Key.Address,
+                                    Remark = g.Key.Remark,
+                                    PackNo = g.Key.PackNo,
+                                    TrackNumber = g.Key.TrackNumber,
+                                    FlagClear = (bool)g.Key.FlagClear,
+                                    Price = g.Sum(y => y.o.Price * y.o.Quantity)
+                                }).Skip((selectClearListRequest.page - 1) * selectClearListRequest.size).Take(selectClearListRequest.size).ToList();
+
+
+                if (response != null)
+                {
+                    return Ok(response);
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
         }
     }
 }

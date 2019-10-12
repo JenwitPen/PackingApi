@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace PackingApi.Models.Responses
 {
-    public class selectClearListResponse
+    public class selectPostConfirmListResponse
     {
         public string DocNum { get; set; }
         public DateTime? DocDate { get; set; }

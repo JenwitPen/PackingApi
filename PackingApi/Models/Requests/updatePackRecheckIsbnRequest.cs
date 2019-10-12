@@ -13,5 +13,6 @@ namespace PackingApi.Models.Requests
         public string IsbnRecheck { get; set; }
         public string Package { get; set; }
         public int? Unit { get; set; }
+        public int UserId { get; set; }
     }
 }

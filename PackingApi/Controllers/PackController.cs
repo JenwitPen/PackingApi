@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Cors;
+﻿using GreatFriends.ThaiBahtText;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -312,7 +313,7 @@ namespace PackingApi.Controllers
 
 
                 if (updatePackRecheckIsbnRequest.Package != null) { packitem.Package = updatePackRecheckIsbnRequest.Package; }
-
+                packitem.UpdateUser = updatePackRecheckIsbnRequest.UserId;
 
                 db.Update(packitem);
                 db.SaveChanges();
@@ -405,11 +406,14 @@ namespace PackingApi.Controllers
         {
             try
             {
+                decimal amount = 121.50M;
+                string s = amount.ThaiBahtText();
+
                 var invoice = (from i in db.TbtOrder
                                where i.DocNum == "1519010001"
                                select i).FirstOrDefault();
            
-                string path = _hostingEnvironment.ContentRootPath + "\\Pdf_template\\packing_invoice.pdf";
+                string path = _hostingEnvironment.ContentRootPath + "\\Pdf_template\\01.1.12 HR02 HR08 101_Foxit.pdf";
                 Stream pdfInputStream = new FileStream(path: path, mode: FileMode.Open);
          
                 FillOutPdf fillOutPdf = new FillOutPdf(_hostingEnvironment.ContentRootPath);
@@ -417,8 +421,8 @@ namespace PackingApi.Controllers
              
                 var data = new Models.PDF.Invoice
                 {
-                    CardCode = invoice.CardCode.ToString(),
-                    CardName = invoice.CardName,
+                    CardCode = invoice.CardCode.ToString()+" text Foxit Free",
+                    CardName = invoice.CardName+"  ทดลองภาษาไทย",
                     Docnum = invoice.DocNum
                 };
                 Stream resultPDFStream = fillOutPdf.FillForm(pdfInputStream, data);
@@ -429,7 +433,7 @@ namespace PackingApi.Controllers
                 if (resultPDFStream.Length != 0)
                 {
                     FileStreamResult fileStreamResult = new FileStreamResult(resultPDFStream, "application/pdf");
-                    fileStreamResult.FileDownloadName = "packing_invoice.pdf";
+                    fileStreamResult.FileDownloadName = "packing_invoice_foxit.pdf";
         
 
                     return fileStreamResult;

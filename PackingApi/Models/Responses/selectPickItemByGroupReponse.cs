@@ -10,7 +10,7 @@ namespace PackingApi.Models.Responses
         public DateTime? DocDueDate { get; set; }
         public string PickNo { get; set; }
         public string ItemGrpName { get; set; }
-
+        public string ItemGrpCode { get; set; }
         public List<selectPickItem> selectPickItems { get; set; }
 
     }
@@ -22,7 +22,7 @@ namespace PackingApi.Models.Responses
         public string Isbn { get; set; }
         public int Quantity { get; set; }
         public bool FlagPick { get; set; }
-
+        public double Price { get; set; }
 
     }
 }
