@@ -48,6 +48,7 @@ namespace PackingApi.Models.PDF.Process
             table.AddCell(bulidColumnSubTitle(@"รหัส/ชื่อกลุ่มสินค้า " + pickDocumentModel.ItemGrpCode + "-" + pickDocumentModel.ItemGrpName, 16, Element.ALIGN_LEFT));
             table.AddCell(bulidColumnSubTitle(@"ใบจัดซื้อสินค้า " + pickDocumentModel.PickNo, 16, Element.ALIGN_RIGHT));
 
+
             foreach (string h in headers)
             {
                 table.AddCell(bulidColumnHeader(h, 16));

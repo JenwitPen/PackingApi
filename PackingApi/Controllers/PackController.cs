@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PackingApi.Helpers;
 using PackingApi.Models.DB;
+using PackingApi.Models.PDF.Process;
 using PackingApi.Models.Requests;
 using PackingApi.Models.Responses;
+using PackingApi.PDF.Models;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -333,7 +335,7 @@ namespace PackingApi.Controllers
             try
             {
                 var data = await (from o in db.TbtOrder
-                                  join p in db.TbtPackItem on new { o.ItemCode, o.DocNum } equals new { p.ItemCode, p.DocNum }                           
+                                  join p in db.TbtPackItem on new { o.ItemCode, o.DocNum } equals new { p.ItemCode, p.DocNum }
                                   where p.FlagPack == true &&
                                    (String.IsNullOrEmpty(selectDocumentPrintingListRequest.PackNo) || p.PackNo == selectDocumentPrintingListRequest.PackNo) &&
                                   (String.IsNullOrEmpty(selectDocumentPrintingListRequest.DocNum) || o.DocNum == selectDocumentPrintingListRequest.DocNum) &&
@@ -400,7 +402,124 @@ namespace PackingApi.Controllers
                 return StatusCode(500, ex);
             }
         }
+        [HttpPost]
+        public async Task<ActionResult> printLabel([FromBody]  printLabelRequest printLabelRequest)
+        {
 
+            try
+            {
+
+                var items = await (from o in db.TbtOrder
+                                   where printLabelRequest.DocNums.Contains(o.DocNum)
+                                   select o).ToListAsync();
+                List<LabelItem> labelItems = new List<LabelItem>();
+                items.ForEach(x =>
+                {
+                    LabelItem l = new LabelItem
+                    {
+                        Dscription = x.Dscription,
+                        Quantity = x.Quantity,
+                    };
+                    labelItems.Add(l);
+                });
+                LabelDocumentModel labelDocumentModel = new LabelDocumentModel
+                {
+                    Address = items.FirstOrDefault().Address,
+                    CardName = items.FirstOrDefault().CardName,
+                    DocDate = items.FirstOrDefault().DocDate,
+                    DocDueDate = items.FirstOrDefault().DocDueDate,
+                    DocNum = string.Join(",", printLabelRequest.DocNums.ToArray()),
+                    labelItems = labelItems,
+                    Remark = items.FirstOrDefault().Remark
+                };
+
+
+                LabelDocument pDoc = new LabelDocument(this._hostingEnvironment);
+
+                Stream resultPDFStream = pDoc.CreatePDF(labelDocumentModel);
+                resultPDFStream.Position = 0;
+                if (resultPDFStream.Length != 0)
+                {
+                    FileStreamResult fileStreamResult = new FileStreamResult(resultPDFStream, "application/pdf");
+                    fileStreamResult.FileDownloadName = "label_" + "" + ".pdf";
+
+
+                    return fileStreamResult;
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+        }
+        [HttpPost]
+        public async Task<ActionResult> printOutOfStock([FromBody]  printOutOfStockRequest printOutOfStockRequest)
+        {
+
+            try
+            {
+
+                var items = await (from o in db.TbtOrder
+                                   where o.DocNum == printOutOfStockRequest.DocNum
+                                   join g in db.TbmItemGroup on o.ItemCode.Trim().Substring(0, 1) equals g.ItemGrpPrefix.Trim()
+                                   select new { o, g }).ToListAsync();
+                List<OutOfStock> outOfStocktems = new List<OutOfStock>();
+                items.ForEach(x =>
+                {
+                    OutOfStock l = new OutOfStock
+                    {
+                        Dscription = x.o.Dscription,
+                        ItemCode = x.o.ItemCode,
+                        Price = (double)x.o.Price,
+                        Qty = (double)x.o.Quantity,
+                        ItemGrpCode = x.g.ItemGrpCode,
+                        ItemGrpName = x.g.ItemGrpName
+
+                    };
+                    outOfStocktems.Add(l);
+                });
+                OutOfStockDocumentModel outOfStockDocumentModel = new OutOfStockDocumentModel
+                {
+                    Address = items.FirstOrDefault().o.Address,
+                    CardName = items.FirstOrDefault().o.CardName,
+                    DocDate = items.FirstOrDefault().o.DocDate,
+                    DocDueDate = items.FirstOrDefault().o.DocDueDate,
+                    DocNum = printOutOfStockRequest.DocNum,
+                    outOfStocktems = outOfStocktems,
+                    Remark = items.FirstOrDefault().o.Remark,
+                };
+
+
+                OutOfStockDocument pDoc = new OutOfStockDocument(this._hostingEnvironment);
+
+                Stream resultPDFStream = pDoc.CreatePDF(outOfStockDocumentModel);
+                resultPDFStream.Position = 0;
+                if (resultPDFStream.Length != 0)
+                {
+                    FileStreamResult fileStreamResult = new FileStreamResult(resultPDFStream, "application/pdf");
+                    fileStreamResult.FileDownloadName = "OutOfStock_" + "" + ".pdf";
+
+
+                    return fileStreamResult;
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+        }
         [HttpPost]
         public ActionResult printInvoice()
         {
@@ -412,29 +531,29 @@ namespace PackingApi.Controllers
                 var invoice = (from i in db.TbtOrder
                                where i.DocNum == "1519010001"
                                select i).FirstOrDefault();
-           
+
                 string path = _hostingEnvironment.ContentRootPath + "\\Pdf_template\\01.1.12 HR02 HR08 101_Foxit.pdf";
                 Stream pdfInputStream = new FileStream(path: path, mode: FileMode.Open);
-         
+
                 FillOutPdf fillOutPdf = new FillOutPdf(_hostingEnvironment.ContentRootPath);
 
-             
+
                 var data = new Models.PDF.Invoice
                 {
-                    CardCode = invoice.CardCode.ToString()+" text Foxit Free",
-                    CardName = invoice.CardName+"  ทดลองภาษาไทย",
+                    CardCode = invoice.CardCode.ToString() + " text Foxit Free",
+                    CardName = invoice.CardName + "  ทดลองภาษาไทย",
                     Docnum = invoice.DocNum
                 };
                 Stream resultPDFStream = fillOutPdf.FillForm(pdfInputStream, data);
-                resultPDFStream.Position = 0;          
+                resultPDFStream.Position = 0;
                 //Download the PDF document in the browser.
-           
- 
+
+
                 if (resultPDFStream.Length != 0)
                 {
                     FileStreamResult fileStreamResult = new FileStreamResult(resultPDFStream, "application/pdf");
                     fileStreamResult.FileDownloadName = "packing_invoice_foxit.pdf";
-        
+
 
                     return fileStreamResult;
                 }
@@ -442,6 +561,91 @@ namespace PackingApi.Controllers
                 {
                     return NotFound();
                 }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+
+        }
+
+        [HttpPost]
+        public async Task<ActionResult> selectPackageStock(selectPackageStock selectPackageStock)
+        {
+            try
+            {
+                var response = await (from p in db.TbmPackage
+                                      where p.Active == true && p.Qty > 0
+                                      select new TbmPackage
+                                      {
+                                          Active = p.Active,
+                                          CreateDate = p.CreateDate,
+                                          CreateUser = p.CreateUser,
+                                          PackageId = p.PackageId,
+                                          PackageName = p.PackageName,
+                                          Qty = p.Qty == null ? 0 : p.Qty,
+                                          UpdateDate = p.UpdateDate,
+                                          UpdateUser = p.UpdateUser
+                                      }
+                                      ).Skip((selectPackageStock.page - 1) * selectPackageStock.size).Take(selectPackageStock.size).ToListAsync();
+                if (response.Count != 0)
+                {
+
+                    return Ok(response);
+                }
+                else
+                {
+                    return NotFound();
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+                return StatusCode(500, ex);
+            }
+        }
+
+        [HttpPost]
+        public ActionResult updatePackageStock([FromBody] updatePackageStockRequest updatePackageStockRequest)
+        {
+
+            try
+            {
+
+                if (updatePackageStockRequest.flagNew)
+                {
+                    TbmPackage addtbmPackage = new TbmPackage
+                    {
+
+                        Active = updatePackageStockRequest.Active,
+                        PackageName = updatePackageStockRequest.PackageName,
+                        Qty = updatePackageStockRequest.Qty,
+                        CreateDate = DateTime.Now,
+                        CreateUser = updatePackageStockRequest.UpdateUser
+                    };
+                    db.TbmPackage.AddRange(addtbmPackage);
+                }
+                else
+                {
+                    var tbmPackage = (from p in db.TbmPackage
+                                      where p.PackageId == updatePackageStockRequest.PackageID
+                                      select p).FirstOrDefault();
+                    tbmPackage.Active = updatePackageStockRequest.Active;
+                    tbmPackage.PackageId = updatePackageStockRequest.PackageID;
+                    tbmPackage.PackageName = updatePackageStockRequest.PackageName;
+                    tbmPackage.Qty = updatePackageStockRequest.Qty;
+                    tbmPackage.UpdateDate = DateTime.Now;
+                    tbmPackage.UpdateUser = updatePackageStockRequest.UpdateUser;
+
+                    db.TbmPackage.UpdateRange(tbmPackage);
+                }
+
+
+                db.SaveChanges();
+                return Ok();
 
             }
             catch (Exception ex)

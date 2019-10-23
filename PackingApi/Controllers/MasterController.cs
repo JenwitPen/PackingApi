@@ -76,12 +76,12 @@ namespace PackingApi.Controllers
 
         }
         [HttpGet]
-        [ResponseCache(Duration = 3600 * 8)]
         public async Task<ActionResult> selectPackage()
         {
             try
             {
                 var data = await (from p in db.TbmPackage
+                                  where p.Active==true
                                   select new { p.PackageName }).Distinct().ToListAsync();
                 List<String> response = new List<string>();
                 response.Add("");

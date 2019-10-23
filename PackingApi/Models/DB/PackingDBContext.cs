@@ -26,7 +26,7 @@ namespace PackingApi.Models.DB
         public virtual DbSet<TbtPackItem> TbtPackItem { get; set; }
         public virtual DbSet<TbtPickItem> TbtPickItem { get; set; }
 
- 
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.HasAnnotation("ProductVersion", "2.2.6-servicing-10079");
@@ -52,11 +52,13 @@ namespace PackingApi.Models.DB
 
                 entity.ToTable("tbm_Package");
 
-                entity.Property(e => e.PackageId)
-                    .HasColumnName("PackageID")
-                    .ValueGeneratedNever();
+                entity.Property(e => e.PackageId).HasColumnName("PackageID");
+
+                entity.Property(e => e.CreateDate).HasColumnType("datetime");
 
                 entity.Property(e => e.PackageName).HasMaxLength(50);
+
+                entity.Property(e => e.UpdateDate).HasColumnType("datetime");
             });
 
             modelBuilder.Entity<TbmRunNo>(entity =>
