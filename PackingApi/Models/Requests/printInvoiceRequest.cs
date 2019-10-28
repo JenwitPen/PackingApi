@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace PackingApi.Models.Requests
 {
-    public class printInvoiceRequest
+    public class printOutOfStockRequest
     {
         public String DocNum { get; set; }
     }

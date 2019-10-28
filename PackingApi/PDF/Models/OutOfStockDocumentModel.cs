@@ -16,7 +16,8 @@ namespace PackingApi.PDF.Models
         public DateTime? DocDueDate { get; set; }
         public string Remark { get; set; }
 
-        public List<OutOfStock> outOfStocktems { get; set; }
+        public List<OutOfStock> OutOfStocks { get; set; }
+        
     }
 
     public class OutOfStock

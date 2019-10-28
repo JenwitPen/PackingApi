@@ -40,8 +40,9 @@ namespace PackingApi.Controllers
             {
                 var data = await (from o in db.TbtOrder
                                   join p in db.TbtPickItem on new { o.ItemCode, o.DocNum } equals new { p.ItemCode, p.DocNum }
-                                  join pack in db.TbtPackItem on o.ItemCode equals pack.ItemCode into gpack
-                                  where p.FlagPick == true && gpack.Count() == 0 &&
+                                  join pack in db.TbtPackItem on new { o.ItemCode, o.DocNum } equals new { pack.ItemCode, pack.DocNum } into gpack
+                                  where p.FlagPick == true && gpack.Count() == 0
+                                  &&
                                    (String.IsNullOrEmpty(selectPickForPackRequest.PickNo) || p.PickNo == selectPickForPackRequest.PickNo) &&
                                   (String.IsNullOrEmpty(selectPickForPackRequest.DocNum) || o.DocNum == selectPickForPackRequest.DocNum) &&
                                   (String.IsNullOrEmpty(selectPickForPackRequest.CardName) || o.CardName.Contains(selectPickForPackRequest.CardName)) &&
@@ -458,6 +459,7 @@ namespace PackingApi.Controllers
                 return StatusCode(500, ex);
             }
         }
+
         [HttpPost]
         public async Task<ActionResult> printOutOfStock([FromBody]  printOutOfStockRequest printOutOfStockRequest)
         {
@@ -491,7 +493,7 @@ namespace PackingApi.Controllers
                     DocDate = items.FirstOrDefault().o.DocDate,
                     DocDueDate = items.FirstOrDefault().o.DocDueDate,
                     DocNum = printOutOfStockRequest.DocNum,
-                    outOfStocktems = outOfStocktems,
+                    OutOfStocks = outOfStocktems,
                     Remark = items.FirstOrDefault().o.Remark,
                 };
 
@@ -520,39 +522,56 @@ namespace PackingApi.Controllers
                 return StatusCode(500, ex);
             }
         }
+
         [HttpPost]
-        public ActionResult printInvoice()
+        public async Task<ActionResult> printInvoice([FromBody]  printInvoiceRequest printInvoiceRequest)
         {
+
             try
             {
-                decimal amount = 121.50M;
-                string s = amount.ThaiBahtText();
 
-                var invoice = (from i in db.TbtOrder
-                               where i.DocNum == "1519010001"
-                               select i).FirstOrDefault();
-
-                string path = _hostingEnvironment.ContentRootPath + "\\Pdf_template\\01.1.12 HR02 HR08 101_Foxit.pdf";
-                Stream pdfInputStream = new FileStream(path: path, mode: FileMode.Open);
-
-                FillOutPdf fillOutPdf = new FillOutPdf(_hostingEnvironment.ContentRootPath);
-
-
-                var data = new Models.PDF.Invoice
+                var items = await (from o in db.TbtOrder
+                                   where o.DocNum == printInvoiceRequest.DocNum
+                                   join g in db.TbmItemGroup on o.ItemCode.Trim().Substring(0, 1) equals g.ItemGrpPrefix.Trim()
+                                   select new { o, g }).ToListAsync();
+                List<InvoiceItem> InvoiceItems = new List<InvoiceItem>();
+                items.ForEach(x =>
                 {
-                    CardCode = invoice.CardCode.ToString() + " text Foxit Free",
-                    CardName = invoice.CardName + "  ทดลองภาษาไทย",
-                    Docnum = invoice.DocNum
+                    InvoiceItem l = new InvoiceItem
+                    {
+                        Dscription = x.o.Dscription,
+                        ItemCode = x.o.ItemCode,
+                        Price = (double)x.o.Price,
+                        Qty = (double)x.o.Quantity,
+                        ItemGrpCode = x.g.ItemGrpCode,
+                        ItemGrpName = x.g.ItemGrpName
+
+                    };
+                    InvoiceItems.Add(l);
+                });
+                InvoiceDocumentModel invoiceDocumentModel = new InvoiceDocumentModel
+                {
+                    Address = items.FirstOrDefault().o.Address,
+                    CardName = items.FirstOrDefault().o.CardName,
+                    CardCode= items.FirstOrDefault().o.CardCode.ToString(),
+                    DocDate = items.FirstOrDefault().o.DocDate,
+                    DocDueDate = items.FirstOrDefault().o.DocDueDate,
+                    DocNum = printInvoiceRequest.DocNum,
+                    invoiceitems = InvoiceItems,
+                    Remark = items.FirstOrDefault().o.Remark,
+                  County=  items.FirstOrDefault().o.County
+
                 };
-                Stream resultPDFStream = fillOutPdf.FillForm(pdfInputStream, data);
+
+
+                InvoiceDocument pDoc = new InvoiceDocument(this._hostingEnvironment);
+
+                Stream resultPDFStream = pDoc.CreatePDF(invoiceDocumentModel);
                 resultPDFStream.Position = 0;
-                //Download the PDF document in the browser.
-
-
                 if (resultPDFStream.Length != 0)
                 {
                     FileStreamResult fileStreamResult = new FileStreamResult(resultPDFStream, "application/pdf");
-                    fileStreamResult.FileDownloadName = "packing_invoice_foxit.pdf";
+                    fileStreamResult.FileDownloadName = "Invoice_" + "" + ".pdf";
 
 
                     return fileStreamResult;
@@ -568,8 +587,58 @@ namespace PackingApi.Controllers
 
                 return StatusCode(500, ex);
             }
-
         }
+
+        //[HttpPost]
+        //public ActionResult printInvoice()
+        //{
+        //    try
+        //    {
+        //        decimal amount = 121.50M;
+        //        string s = amount.ThaiBahtText();
+
+        //        var invoice = (from i in db.TbtOrder
+        //                       where i.DocNum == "1519010001"
+        //                       select i).FirstOrDefault();
+
+        //        string path = _hostingEnvironment.ContentRootPath + "\\Pdf_template\\01.1.12 HR02 HR08 101_Foxit.pdf";
+        //        Stream pdfInputStream = new FileStream(path: path, mode: FileMode.Open);
+
+        //        FillOutPdf fillOutPdf = new FillOutPdf(_hostingEnvironment.ContentRootPath);
+
+
+        //        var data = new Models.PDF.Invoice
+        //        {
+        //            CardCode = invoice.CardCode.ToString() + " text Foxit Free",
+        //            CardName = invoice.CardName + "  ทดลองภาษาไทย",
+        //            Docnum = invoice.DocNum
+        //        };
+        //        Stream resultPDFStream = fillOutPdf.FillForm(pdfInputStream, data);
+        //        resultPDFStream.Position = 0;
+        //        //Download the PDF document in the browser.
+
+
+        //        if (resultPDFStream.Length != 0)
+        //        {
+        //            FileStreamResult fileStreamResult = new FileStreamResult(resultPDFStream, "application/pdf");
+        //            fileStreamResult.FileDownloadName = "packing_invoice_foxit.pdf";
+
+
+        //            return fileStreamResult;
+        //        }
+        //        else
+        //        {
+        //            return NotFound();
+        //        }
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+
+        //        return StatusCode(500, ex);
+        //    }
+
+        //}
 
         [HttpPost]
         public async Task<ActionResult> selectPackageStock(selectPackageStock selectPackageStock)
@@ -577,7 +646,7 @@ namespace PackingApi.Controllers
             try
             {
                 var response = await (from p in db.TbmPackage
-                                      where p.Active == true && p.Qty > 0
+                                      where p.Active == true
                                       select new TbmPackage
                                       {
                                           Active = p.Active,

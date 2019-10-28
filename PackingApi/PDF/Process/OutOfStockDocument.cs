@@ -79,11 +79,11 @@ namespace PackingApi.Models.PDF.Process
                 tableDetail.AddCell(bulidColumnHeader(h, 16));
             }
 
-            foreach (var group in outOfStockDocumentModel.outOfStocktems.Select(x => new { x.ItemGrpCode, x.ItemGrpName }).Distinct())
+            foreach (var group in outOfStockDocumentModel.OutOfStocks.Select(x => new { x.ItemGrpCode, x.ItemGrpName }).Distinct())
             {
                 tableDetail.AddCell(bulidColumnDetail(@"ประเภทสินค้า : " + group.ItemGrpCode + "-" + group.ItemGrpName, 14, 6, Element.ALIGN_CENTER));
                 int i = 1;
-                foreach (var item in outOfStockDocumentModel.outOfStocktems.Where(x => x.ItemGrpCode == group.ItemGrpCode))
+                foreach (var item in outOfStockDocumentModel.OutOfStocks.Where(x => x.ItemGrpCode == group.ItemGrpCode))
                 {
                     tableDetail.AddCell(bulidColumnDetail(i.ToString(), 14, 1, Element.ALIGN_CENTER));
                     tableDetail.AddCell(bulidColumnDetail(item.ItemCode, 14, 1, Element.ALIGN_CENTER));
